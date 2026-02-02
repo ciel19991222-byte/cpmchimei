@@ -77,10 +77,11 @@
 
         header p {
             margin: 12px 0 0;
-            font-weight: 300;
-            opacity: 0.8;
-            font-size: 0.9rem;
-            letter-spacing: 2px;
+            font-weight: 400;
+            opacity: 0.9;
+            font-size: 1.1rem;
+            letter-spacing: 3px;
+            font-family: sans-serif;
         }
 
         /* 搜尋區塊 - 毛玻璃效果 */
@@ -241,7 +242,7 @@
             <span class="title-main">奇美醫療體系</span>
             <span class="title-sub">主治醫師暨眷屬歲末聯誼活動</span>
         </h1>
-        <p>2026 SEATING INQUIRY</p>
+        <p>2026.02.07</p>
     </header>
 
     <div class="search-panel">
@@ -252,7 +253,6 @@
     </div>
 
     <div id="results">
-        <!-- 預設為空狀態 -->
         <div class="empty-state">
             <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path></svg>
             <div>請輸入關鍵字開始查詢</div>
@@ -279,7 +279,6 @@
         const nameVal = document.getElementById('nameInput').value.trim().toLowerCase();
         const resultsDiv = document.getElementById('results');
 
-        // 如果輸入框為空，清除所有顯示資訊並恢復初始狀態
         if (!nameVal) {
             resultsDiv.innerHTML = `
                 <div class="empty-state">
@@ -289,9 +288,7 @@
             return;
         }
 
-        const filtered = rawData.filter(d => {
-            return d[2].toLowerCase().includes(nameVal);
-        });
+        const filtered = rawData.filter(d => d[2].toLowerCase().includes(nameVal));
 
         if (filtered.length === 0) {
             resultsDiv.innerHTML = `
