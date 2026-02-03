@@ -1,69 +1,419 @@
-<script>
-    const rawData = [...]; // ← 你原本的資料 그대로 不用動
-
-    let searchTimer;
-
-    function normalize(str) {
-        return str
-            .toString()
-            .trim()
-            .replace(/\u3000/g, ' ') // 全形空白轉半形
-            .toLowerCase();
-    }
-
-    function debounceSearch() {
-        clearTimeout(searchTimer);
-        searchTimer = setTimeout(doSearch, 300);
-    }
-
-    function doSearch() {
-        const keyword = normalize(document.getElementById('nameInput').value);
-        const resultsDiv = document.getElementById('results');
-
-        if (!keyword) {
-            resultsDiv.innerHTML = `
-                <div class="empty-state">
-                    <div>請輸入關鍵字開始查詢</div>
-                </div>`;
-            return;
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>奇美醫療體系 - 座位查詢系統</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+            background-color: #f3f4f6;
         }
-
-        const filtered = rawData.filter(row => {
-            const table = normalize(row[0]);
-            const dept  = normalize(row[1]);
-            const name  = normalize(row[2]);
-            const title = normalize(row[3] || '');
-
-            return (
-                name.includes(keyword) ||
-                dept.includes(keyword) ||
-                title.includes(keyword) ||
-                table.includes(keyword)
-            );
-        });
-
-        if (filtered.length === 0) {
-            resultsDiv.innerHTML = `
-                <div class="empty-state">
-                    <div>查無資料</div>
-                </div>`;
-            return;
+        .header-bg {
+            /* 更換為用戶提供的背景圖示 */
+            background-image: url('https://raw.githubusercontent.com/ciel19991222-byte/cpmchimei/main/2.png');
+            background-size: cover;
+            background-position: center;
+            padding: 2.5rem 1rem 5rem 1rem;
+            border-radius: 0 0 2.5rem 2.5rem;
+            position: relative;
         }
+        /* 增加文字陰影以提升在圖片上的辨識度 */
+        .header-text {
+            text-shadow: 0 2px 4px rgba(0, 0, 0, 0.5);
+        }
+        .search-container {
+            margin-top: -2.5rem;
+            position: sticky;
+            top: 0.5rem;
+            z-index: 10;
+            padding: 0 1rem;
+        }
+        .doctor-card {
+            transition: transform 0.1s;
+        }
+        .doctor-card:active {
+            transform: scale(0.98);
+        }
+        .table-badge {
+            background: linear-gradient(135deg, #b91c1c 0%, #ef4444 100%);
+        }
+        .logo-img {
+            max-width: 180px;
+            height: auto;
+            margin-bottom: 1rem;
+            background-color: rgba(255, 255, 255, 0.95);
+            padding: 8px 15px;
+            border-radius: 12px;
+            display: inline-block;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+    </style>
+</head>
+<body class="pb-8">
 
-        resultsDiv.innerHTML = filtered.map((d, index) => `
-            <div class="dr-card" style="animation-delay:${index * 0.05}s">
-                <div class="dr-info">
-                    <div class="dr-name">
-                        ${d[2]}
-                        <span class="dr-title">${d[3] || ''}</span>
-                    </div>
-                    <div class="dr-dept">${d[1]}</div>
-                </div>
-                <div class="seat-box">
-                    <span class="seat-label">Table</span>
-                    <span class="seat-num">${d[0]}</span>
-                </div>
+    <!-- 頂部圖片背景區域 -->
+    <div class="header-bg text-center shadow-lg">
+        <!-- 奇美 Logo 區域 -->
+        <div class="flex justify-center">
+            <img src="https://raw.githubusercontent.com/ciel19991222-byte/cpmchimei/main/logo-green.png" 
+                 alt="奇美醫療體系 Logo" 
+                 class="logo-img"
+                 onerror="this.style.display='none'">
+        </div>
+        
+        <div class="header-text">
+            <h2 class="text-white text-2xl font-bold tracking-tight mb-1">奇美醫療體系</h2>
+            <h1 class="text-2xl font-bold text-white leading-tight">主治醫師暨眷屬歲末聯誼活動</h1>
+            <p class="text-white text-xl font-black mt-4 opacity-100 tracking-widest">115.02.07</p>
+        </div>
+    </div>
+
+    <!-- 搜尋區域 -->
+    <div class="search-container">
+        <div class="relative bg-white rounded-2xl shadow-xl overflow-hidden border border-blue-100">
+            <input type="text" id="searchInput" 
+                placeholder="請輸入姓名或科別搜尋..." 
+                class="w-full p-4 pl-12 text-lg focus:outline-none transition-all">
+            <div class="absolute left-4 top-5 text-blue-500">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                </svg>
             </div>
-        `).join('');
-    }
-</script>
+        </div>
+    </div>
+
+    <!-- 結果列表 -->
+    <div id="resultsList" class="space-y-3 mt-6 px-4">
+        <div class="text-center py-12 text-gray-400">
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-16 w-16 mx-auto mb-4 opacity-20" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+            </svg>
+            <p class="text-lg font-medium text-gray-400">搜尋座位表</p>
+        </div>
+    </div>
+
+    <script>
+        // 醫師資料庫 (保留完整數據)
+        const doctorData = [
+            {t: "主桌", d: "院長室", n: "林宏榮", p: "院長(2)", r: ""},
+            {t: "主桌", d: "院長室", n: "周偉倪", p: "院長", r: ""},
+            {t: "主桌", d: "兒科部", n: "周琪", p: "部長", r: ""},
+            {t: "主桌", d: "院長室", n: "田宇峯", p: "院長(2)", r: ""},
+            {t: "主桌", d: "院長室", n: "邱仲慶", p: "榮譽院長", r: ""},
+            {t: "主桌", d: "兒科部", n: "林秀娟", p: "教授", r: ""},
+            {t: "主桌", d: "院長室", n: "曹朝榮", p: "教授", r: ""},
+            {t: "主桌", d: "院長室", n: "黃順賢", p: "榮譽院長", r: ""},
+            {t: "主桌", d: "感染管制中心", n: "莊銀清", p: "顧問(2)", r: ""},
+            {t: "主桌", d: "院長室", n: "黃正安", p: "榮譽副院長", r: ""},
+            {t: "主桌", d: "牙醫部顧問", n: "劉巡宇", p: "董事", r: ""},
+            {t: "主桌", d: "院長室顧問", n: "陳志州", p: "董事(2)", r: ""},
+            {t: "一桌", d: "院長室", n: "郭行道", p: "副院長(2)", r: ""},
+            {t: "一桌", d: "胃腸肝膽科", n: "許銘仁", p: "顧問", r: ""},
+            {t: "一桌", d: "胃腸肝膽科", n: "馮意哲", p: "主任(2)", r: ""},
+            {t: "一桌", d: "胃腸肝膽科", n: "陳季杏", p: "醫師(2)", r: ""},
+            {t: "一桌", d: "肝膽科", n: "王宿鴻", p: "主任(2)", r: ""},
+            {t: "一桌", d: "風濕免疫科", n: "陳宏安", p: "主任", r: ""},
+            {t: "二桌", d: "內科部", n: "王憲奕", p: "副部長", r: ""},
+            {t: "二桌", d: "腎臟科", n: "江銘彥", p: "醫師", r: ""},
+            {t: "二桌", d: "腎臟科", n: "黃筠婷", p: "醫師", r: ""},
+            {t: "二桌", d: "血液透析室(新)", n: "甘偉志", p: "主任", r: ""},
+            {t: "二桌", d: "血液科", n: "吳鴻昌", p: "主任", r: ""},
+            {t: "二桌", d: "血液腫瘤科", n: "陳威宇", p: "醫師(2)", r: ""},
+            {t: "二桌", d: "血液腫瘤科", n: "林芸孜", p: "醫師", r: ""},
+            {t: "二桌", d: "放射腫瘤部", n: "蔡嘉仁", p: "醫師", r: ""},
+            {t: "二桌", d: "放射腫瘤部", n: "林立青", p: "醫師", r: ""},
+            {t: "三桌", d: "影像醫學部", n: "郭禹廷", p: "部長", r: ""},
+            {t: "三桌", d: "放射診斷科", n: "翁國勛", p: "醫師", r: ""},
+            {t: "三桌", d: "腹部影像醫學科", n: "劉綺霞", p: "主任", r: ""},
+            {t: "三桌", d: "肌肉骨骼影像醫學科", n: "謝賜吉", p: "主任(2)", r: ""},
+            {t: "三桌", d: "放射診斷科", n: "林銘彬", p: "醫師(2)", r: ""},
+            {t: "三桌", d: "新創醫材開發中心", n: "吳德昌", p: "主任", r: ""},
+            {t: "三桌", d: "放射腫瘤部", n: "何聖佑", p: "部長(2)", r: ""},
+            {t: "四桌", d: "骨科部", n: "簡基勝", p: "部長", r: ""},
+            {t: "四桌", d: "骨科部", n: "張文碩", p: "醫師", r: ""},
+            {t: "四桌", d: "骨科部", n: "鍾啟榮", p: "醫師", r: ""},
+            {t: "四桌", d: "骨科部", n: "蘇昱仲", p: "醫師", r: ""},
+            {t: "四桌", d: "骨科部", n: "吳宗穆", p: "醫師", r: ""},
+            {t: "四桌", d: "手足骨外科", n: "王炳惠", p: "主任", r: ""},
+            {t: "四桌", d: "運動傷害科", n: "林昇輝", p: "主任", r: ""},
+            {t: "四桌", d: "骨科部", n: "吳重達", p: "顧問", r: ""},
+            {t: "四桌", d: "骨科部", n: "黄柏昌", p: "醫師", r: ""},
+            {t: "四桌", d: "一般骨科", n: "林威廷", p: "主任", r: ""},
+            {t: "五桌", d: "心臟血管外科", n: "吳南鈞", p: "主任(2)", r: ""},
+            {t: "五桌", d: "心臟血管外科", n: "李政亞", p: "醫師", r: ""},
+            {t: "五桌", d: "心臟血管外科", n: "許向平", p: "醫師(2)", r: ""},
+            {t: "五桌", d: "心臟血管外科", n: "吳依璇", p: "醫師", r: ""},
+            {t: "五桌", d: "麻醉部", n: "吳仲鎰", p: "醫師(素)", r: ""},
+            {t: "六桌", d: "青光眼科", n: "林主國", p: "主任", r: ""},
+            {t: "六桌", d: "眼神經科", n: "李婉如", p: "主任", r: ""},
+            {t: "六桌", d: "小兒斜弱視科", n: "柳景豑", p: "主任(2)", r: ""},
+            {t: "六桌", d: "眼科部", n: "魏福宗", p: "醫師(2)", r: ""},
+            {t: "六桌", d: "眼科部", n: "鄭漢春", p: "醫師(2)", r: ""},
+            {t: "六桌", d: "皮膚科", n: "賴豐傑", p: "主任", r: ""},
+            {t: "六桌", d: "醫學美容中心", n: "鄭百珊", p: "主任", r: ""},
+            {t: "七桌", d: "院長室", n: "陳奇祥", p: "醫秘(2)", r: ""},
+            {t: "七桌", d: "專師培育及發展中心", n: "陳志金", p: "主任(2)", r: ""},
+            {t: "七桌", d: "品質管理部", n: "杜漢祥", p: "部長", r: ""},
+            {t: "七桌", d: "教學部", n: "廖家德", p: "部長", r: ""},
+            {t: "七桌", d: "胸腔內科", n: "蔣士仁", p: "主任", r: ""},
+            {t: "七桌", d: "胸腔內科", n: "謝俊民", p: "顧問", r: ""},
+            {t: "七桌", d: "門診部", n: "柯獻欽", p: "部長(2)", r: ""},
+            {t: "八桌", d: "外科部", n: "陳明鎮", p: "部長(2)", r: ""},
+            {t: "八桌", d: "一般及消化系外科", n: "杜敬惟", p: "醫師", r: ""},
+            {t: "八桌", d: "一般及消化系外科", n: "王家豪", p: "醫師", r: ""},
+            {t: "八桌", d: "一般及消化系外科", n: "盧致穎", p: "醫師", r: ""},
+            {t: "八桌", d: "移植醫學科", n: "孫定平", p: "主任", r: ""},
+            {t: "八桌", d: "南科診所", n: "郭澄義", p: "醫師(2)", r: ""},
+            {t: "八桌", d: "小兒外科", n: "石敦義", p: "主任(1+素)", r: ""},
+            {t: "九桌", d: "外科部", n: "黃冠華", p: "副部長", r: ""},
+            {t: "九桌", d: "泌尿外科", n: "蔡易辰", p: "醫師(2)", r: ""},
+            {t: "九桌", d: "泌尿外科", n: "蘇家震", p: "醫師", r: ""},
+            {t: "九桌", d: "泌尿外科", n: "謝昆霖", p: "醫師", r: ""},
+            {t: "九桌", d: "泌尿外科", n: "曾文歆", p: "醫師(2)", r: ""},
+            {t: "九桌", d: "泌尿腫瘤科", n: "劉建良", p: "主任", r: ""},
+            {t: "九桌", d: "整形外科", n: "陳俊嘉", p: "主任", r: ""},
+            {t: "九桌", d: "整形外科", n: "邱浩遠", p: "顧問", r: ""},
+            {t: "十桌", d: "大腸直腸外科", n: "周家麟", p: "主任(2)", r: ""},
+            {t: "十桌", d: "大腸直腸外科", n: "黃亘毅", p: "醫師", r: ""},
+            {t: "十桌", d: "大腸直腸外科", n: "黃盈齊", p: "醫師", r: ""},
+            {t: "十桌", d: "耳鼻喉部", n: "陳力瑀", p: "醫師", r: ""},
+            {t: "十桌", d: "外傷科", n: "林逸峯", p: "醫師", r: ""},
+            {t: "十桌", d: "家庭醫學部", n: "黃駿豐", p: "副部長", r: ""},
+            {t: "十桌", d: "健康管理中心", n: "蔡孟修", p: "主任(2)", r: ""},
+            {t: "十桌", d: "老年醫學科", n: "劉秉奕", p: "醫師", r: ""},
+            {t: "十一桌", d: "復健部", n: "王鈺霖", p: "部長", r: ""},
+            {t: "十一桌", d: "兒科部", n: "王麟玉", p: "醫師", r: ""},
+            {t: "十一桌", d: "復健部", n: "陳柏偉", p: "醫師(2)", r: ""},
+            {t: "十一桌", d: "復健部", n: "董宥汝", p: "醫師(2)", r: ""},
+            {t: "十一桌", d: "遺傳暨罕見疾病中心", n: "蔡文暉", p: "主任", r: ""},
+            {t: "十一桌", d: "耳鼻喉部", n: "張世倫", p: "部長(2)", r: ""},
+            {t: "十一桌", d: "耳鼻喉部喉科", n: "劉璟鋒", p: "主任", r: ""},
+            {t: "十二桌", d: "院長室", n: "湯宏仁", p: "副院長(1+素)", r: ""},
+            {t: "十二桌", d: "感染科", n: "劉晉瑋", p: "醫師", r: ""},
+            {t: "十二桌", d: "全人醫療科", n: "翁子傑", p: "醫師(2)", r: ""},
+            {t: "十二桌", d: "醫學研究部", n: "林茂村", p: "顧問(2)", r: ""},
+            {t: "十二桌", d: "醫學研究部", n: "張菁萍", p: "教授", r: ""},
+            {t: "十二桌", d: "高壓氧科", n: "牛柯琪", p: "主任", r: ""},
+            {t: "十二桌", d: "實驗動物及技能中心", n: "王致丞", p: "主任(素)", r: ""},
+            {t: "十三桌", d: "院長室", n: "鄭天浚", p: "副院長(2)", r: ""},
+            {t: "十三桌", d: "神經內科", n: "林高章", p: "顧問(2)", r: ""},
+            {t: "十三桌", d: "神經內科", n: "張嘉祐", p: "顧問", r: ""},
+            {t: "十三桌", d: "腦中風中心", n: "謝孟倉", p: "主任", r: ""},
+            {t: "十三桌", d: "神經內科", n: "葉珀秀", p: "醫師", r: ""},
+            {t: "十三桌", d: "神經內科", n: "林慧娟", p: "醫師", r: ""},
+            {t: "十三桌", d: "院長室", n: "蘇世斌", p: "顧問", r: ""},
+            {t: "十三桌", d: "財務處", n: "許勝武", p: "處長", r: ""},
+            {t: "十四桌", d: "院長室", n: "陳志成", p: "副院長(2)", r: ""},
+            {t: "十四桌", d: "心臟血管內科", n: "曾宣靈", p: "醫師", r: ""},
+            {t: "十四桌", d: "心臟血管內科", n: "洪俊聲", p: "醫師", r: ""},
+            {t: "十四桌", d: "內分泌新陳代謝科", n: "洪晧彰", p: "主任", r: ""},
+            {t: "十四桌", d: "內分泌新陳代謝科", n: "彭勞慧", p: "醫師(2)", r: ""},
+            {t: "十四桌", d: "婦女泌尿科", n: "吳銘斌", p: "主任", r: ""},
+            {t: "十四桌", d: "病理部", n: "莊世松", p: "部長", r: ""},
+            {t: "十五桌", d: "神經外科", n: "陳志偉", p: "主任", r: ""},
+            {t: "十五桌", d: "神經外科", n: "葉昭宏", p: "醫師", r: ""},
+            {t: "十五桌", d: "神經外科", n: "嚴世島", p: "醫師", r: ""},
+            {t: "十五桌", d: "神經外科", n: "李瑤琳", p: "醫師", r: ""},
+            {t: "十五桌", d: "教師培育中心", n: "郭進榮", p: "主任(2)", r: ""},
+            {t: "十五桌", d: "胸腔外科", n: "蘇英傑", p: "主任(2)", r: ""},
+            {t: "十五桌", d: "胸腔外科", n: "陳照坤", p: "醫師", r: ""},
+            {t: "十六桌", d: "中醫部", n: "王瑜婷", p: "部長", r: ""},
+            {t: "十六桌", d: "中醫部", n: "莊照宇", p: "醫師", r: ""},
+            {t: "十六桌", d: "中醫部", n: "許晉嘉", p: "醫師", r: ""},
+            {t: "十六桌", d: "中醫部", n: "梁祐爾", p: "醫師", r: ""},
+            {t: "十六桌", d: "中醫部", n: "陳豪君", p: "醫師", r: ""},
+            {t: "十六桌", d: "中醫部", n: "陳曉瑱", p: "醫師", r: ""},
+            {t: "十六桌", d: "中醫骨傷科", n: "任東輝", p: "主任(素)", r: ""},
+            {t: "十六桌", d: "耳鼻喉部", n: "謝貞洲", p: "醫師", r: ""},
+            {t: "十六桌", d: "耳鼻喉部", n: "沈至軒", p: "醫師(2)", r: ""},
+            {t: "十七桌", d: "院長室", n: "黃文聰", p: "副院長", r: ""},
+            {t: "十七桌", d: "血液腫瘤科", n: "林正耀", p: "主任", r: ""},
+            {t: "十七桌", d: "血液腫瘤科", n: "陳彥勳", p: "醫師", r: ""},
+            {t: "十七桌", d: "一般內科", n: "王淑慎", p: "醫師", r: ""},
+            {t: "十七桌", d: "病理部", n: "沈宛霖", p: "部長", r: ""},
+            {t: "十七桌", d: "放射腫瘤科", n: "李淞維", p: "主任", r: ""},
+            {t: "十七桌", d: "放射診斷科", n: "吳坤育", p: "醫師", r: ""},
+            {t: "十七桌", d: "放射診斷科", n: "羅亭凱", p: "醫師", r: ""},
+            {t: "十七桌", d: "放射診斷科", n: "張裕綱", p: "顧問(2)", r: ""},
+            {t: "十八桌", d: "院長室", n: "蔣維凡", p: "醫秘", r: ""},
+            {t: "十八桌", d: "口腔顎面外科", n: "李偉廷", p: "醫師", r: ""},
+            {t: "十八桌", d: "口腔顎面外科", n: "張擇民", p: "醫師", r: ""},
+            {t: "十八桌", d: "加護醫學部", n: "陳欽明", p: "部長(2)", r: ""},
+            {t: "十八桌", d: "加護醫學部", n: "趙建銘", p: "醫師(2)", r: ""},
+            {t: "十八桌", d: "眼科", n: "顏永昌", p: "主任(2)", r: ""},
+            {t: "十八桌", d: "神經內科", n: "吳明修", p: "主任", r: ""},
+            {t: "十九桌", d: "院長室", n: "許建清", p: "副院長(2)", r: ""},
+            {t: "十九桌", d: "職業醫學科", n: "郭婉吟", p: "主任", r: ""},
+            {t: "十九桌", d: "急診醫學部", n: "嚴勤凱", p: "醫師", r: ""},
+            {t: "十九桌", d: "麻醉部", n: "楊志平", p: "部長", r: ""},
+            {t: "十九桌", d: "麻醉部", n: "籃國懋", p: "醫師", r: ""},
+            {t: "十九桌", d: "麻醉部", n: "陳應輝", p: "顧問", r: ""},
+            {t: "十九桌", d: "麻醉科", n: "李育諭", p: "醫師", r: ""},
+            {t: "十九桌", d: "麻醉部", n: "鐘韋筑", p: "醫師", r: ""},
+            {t: "十九桌", d: "麻醉部", n: "盧雋穎", p: "醫師", r: ""},
+            {t: "二十桌", d: "麻醉部", n: "陳貞吟", p: "顧問", r: ""},
+            {t: "二十桌", d: "麻醉部", n: "褚錦承", p: "部長", r: ""},
+            {t: "二十桌", d: "麻醉部", n: "林明忠", p: "醫師", r: ""},
+            {t: "二十桌", d: "麻醉部", n: "林建宏", p: "主治(2)", r: ""},
+            {t: "二十桌", d: "一般麻醉科", n: "譚炳恆", p: "主任", r: ""},
+            {t: "二十桌", d: "心臟麻醉科", n: "邢中熹", p: "主任", r: ""},
+            {t: "二十桌", d: "醫研部", n: "王志中", p: "教授", r: ""},
+            {t: "二十桌", d: "麻醉部", n: "曾劍英", p: "醫師(2)", r: ""},
+            {t: "二十一桌", d: "牙醫部", n: "顏欽堉", p: "部長", r: ""},
+            {t: "二十一桌", d: "牙周病科", n: "陳俊榮", p: "主任", r: ""},
+            {t: "二十一桌", d: "牙周病科", n: "官語晨", p: "醫師", r: ""},
+            {t: "二十一桌", d: "牙周病科", n: "劉昱菁", p: "醫師", r: ""},
+            {t: "二十一桌", d: "復補綴牙科", n: "張瑞忠", p: "主任", r: ""},
+            {t: "二十一桌", d: "復補綴牙科", n: "許育瑞", p: "醫師", r: ""},
+            {t: "二十一桌", d: "口腔顎面外科", n: "周大雄", p: "醫師(2)", r: ""},
+            {t: "二十一桌", d: "牙髓病科", n: "陳昭安", p: "主任(素)", r: ""},
+            {t: "二十二桌", d: "院長室", n: "顧博明", p: "副院長", r: ""},
+            {t: "二十二桌", d: "心臟血管內科", n: "葉慧儀", p: "主任", r: ""},
+            {t: "二十二桌", d: "心臟血管內科", n: "翁郁傑", p: "醫師", r: ""},
+            {t: "二十二桌", d: "心臟血管內科", n: "陳威仲", p: "醫師", r: ""},
+            {t: "二十二桌", d: "心臟血管內科", n: "黃崔源", p: "顧問", r: ""},
+            {t: "二十二桌", d: "腎臟科", n: "黃國清", p: "主任", r: ""},
+            {t: "二十二桌", d: "血液透析室(新)", n: "杜奕德", p: "主任(2)", r: ""},
+            {t: "二十二桌", d: "健康管理中心", n: "黃建元", p: "總監(2)", r: ""},
+            {t: "二十三桌", d: "肝膽科", n: "董宏達", p: "主任", r: ""},
+            {t: "二十三桌", d: "內分泌新陳代謝科", n: "邱酩淳", p: "醫師", r: ""},
+            {t: "二十三桌", d: "胸腔內科", n: "黃恒慶", p: "醫師(2)", r: ""},
+            {t: "二十三桌", d: "胸腔內科", n: "蔡易霖", p: "醫師", r: ""},
+            {t: "二十三桌", d: "兒科部", n: "郭峻瑋", p: "醫師(2)", r: ""},
+            {t: "二十三桌", d: "精神科", n: "沈揚理", p: "醫師", r: ""},
+            {t: "二十四桌", d: "院長室", n: "張進宏", p: "顧問", r: ""},
+            {t: "二十四桌", d: "神經外科", n: "謝文郁", p: "顧問", r: ""},
+            {t: "二十四桌", d: "外科部", n: "林敬天", p: "醫師", r: ""},
+            {t: "二十四桌", d: "一般及消化系外科", n: "莊主欣", p: "主任(2)", r: ""},
+            {t: "二十四桌", d: "一般及消化系外科", n: "王新富", p: "醫師", r: ""},
+            {t: "二十四桌", d: "胸腔外科", n: "梁瑞麟", p: "醫師(2)", r: ""},
+            {t: "二十四桌", d: "院長室", n: "李浩銑", p: "顧問", r: ""},
+            {t: "二十四桌", d: "耳鼻喉科", n: "田輝勣", p: "主任", r: ""},
+            {t: "二十五桌", d: "院長室", n: "鄭哲舟", p: "顧問", r: ""},
+            {t: "二十五桌", d: "泌尿外科", n: "范文宙", p: "主任(2)", r: ""},
+            {t: "二十五桌", d: "泌尿外科", n: "盧致誠", p: "醫師(2)", r: ""},
+            {t: "二十五桌", d: "骨科", n: "劉宣志", p: "主任", r: ""},
+            {t: "二十五桌", d: "骨科", n: "余重毅", p: "醫師(2)", r: ""},
+            {t: "二十五桌", d: "骨科", n: "胡瑞", p: "醫師", r: ""},
+            {t: "二十五桌", d: "復健科", n: "洪榮斌", p: "主任", r: ""},
+            {t: "二十六桌", d: "精神醫學部", n: "林健禾", p: "部長", r: ""},
+            {t: "二十六桌", d: "高齡精神醫學科", n: "高霈馨", p: "主任", r: ""},
+            {t: "二十六桌", d: "成癮防治科", n: "張志誠", p: "主任(2)", r: ""},
+            {t: "二十六桌", d: "樹林院區", n: "李添誠", p: "顧問(2)", r: ""},
+            {t: "二十六桌", d: "樹林院區", n: "鄭琬霖", p: "醫師(2)", r: ""},
+            {t: "二十六桌", d: "樹林院區", n: "朱佳俊", p: "醫師(2)", r: ""},
+            {t: "二十七桌", d: "工作人員", n: "施明倩", p: "高專", r: ""},
+            {t: "二十七桌", d: "工作人員", n: "丁鳳瑤", p: "品管員", r: ""},
+            {t: "二十七桌", d: "工作人員", n: "吳婉菁", p: "品管員", r: ""},
+            {t: "二十七桌", d: "工作人員", n: "高瑞穗", p: "教行員", r: ""},
+            {t: "二十七桌", d: "工作人員", n: "林淑雅", p: "教行員", r: ""},
+            {t: "二十七桌", d: "工作人員", n: "林雨蕎", p: "多媒員", r: ""},
+            {t: "二十七桌", d: "工作人員", n: "陳慧娟", p: "多媒員", r: ""},
+            {t: "二十七桌", d: "工作人員", n: "司機", p: "", r: ""},
+            {t: "二十八桌", d: "院長室", n: "王哲川", p: "副院長", r: ""},
+            {t: "二十八桌", d: "神經外科", n: "鄭鴻翔", p: "醫師(2)", r: ""},
+            {t: "二十八桌", d: "神經外科", n: "廖仁傑", p: "醫師(2)", r: ""},
+            {t: "二十八桌", d: "神經內科", n: "黃柏穎", p: "醫師", r: ""},
+            {t: "二十八桌", d: "神經內科", n: "陳南丞", p: "主任", r: ""},
+            {t: "二十八桌", d: "兒科", n: "陳昱瑾", p: "主任", r: ""},
+            {t: "二十八桌", d: "加護醫學科", n: "曾榮賦", p: "醫師(2)", r: ""},
+            {t: "二十九桌", d: "院長室", n: "王覲文", p: "顧問", r: ""},
+            {t: "二十九桌", d: "骨科", n: "王柏竣", p: "醫師", r: ""},
+            {t: "二十九桌", d: "骨科", n: "余宗興", p: "主任", r: ""},
+            {t: "二十九桌", d: "骨科", n: "施貿翔", p: "醫師", r: ""},
+            {t: "二十九桌", d: "一般外科", n: "陳俊良", p: "主任(素)", r: ""},
+            {t: "二十九桌", d: "外科部", n: "洪順興", p: "部長", r: ""},
+            {t: "二十九桌", d: "泌尿外科", n: "陳經國", p: "醫師", r: ""},
+            {t: "二十九桌", d: "泌尿外科", n: "胡恭寧", p: "醫師", r: ""},
+            {t: "二十九桌", d: "心臟外科", n: "洪綸吾", p: "醫師(2)", r: ""},
+            {t: "三十桌", d: "急診醫學部", n: "朱逢源", p: "部長", r: ""},
+            {t: "三十桌", d: "急診醫學部", n: "陳義憲", p: "主任", r: ""},
+            {t: "三十桌", d: "急診醫學部", n: "郭炳讓", p: "醫師", r: ""},
+            {t: "三十桌", d: "放射診斷科", n: "吳泰清", p: "主任", r: ""},
+            {t: "三十桌", d: "放射診斷科", n: "舒惠芳", p: "醫師(2)", r: ""},
+            {t: "三十桌", d: "內分泌", n: "陳郁麗", p: "主任", r: ""},
+            {t: "三十桌", d: "內分泌", n: "劉欣岳", p: "醫師", r: ""},
+            {t: "三十桌", d: "感染科", n: "陳宏睿", p: "醫師(2)", r: ""},
+            {t: "三十一桌", d: "復健科", n: "林彣芷", p: "主任(2)", r: ""},
+            {t: "三十一桌", d: "腎臟科", n: "林煒楗", p: "醫師", r: ""},
+            {t: "三十一桌", d: "家庭醫學科", n: "柯俊宏", p: "主任(2)", r: ""},
+            {t: "三十一桌", d: "家庭醫學科", n: "杜明道", p: "醫師", r: ""},
+            {t: "三十一桌", d: "家庭醫學科", n: "周小軒", p: "主任(2)", r: ""},
+            {t: "三十一桌", d: "眼科", n: "蕭景星", p: "主任", r: ""},
+            {t: "三十一桌", d: "牙科", n: "于錫倩", p: "主任", r: ""},
+            {t: "三十二桌", d: "胃腸肝膽科", n: "楊道欣", p: "主任", r: ""},
+            {t: "三十二桌", d: "胃腸肝膽科", n: "閻姵君", p: "醫師", r: ""},
+            {t: "三十二桌", d: "胃腸肝膽科", n: "陳奕嘉", p: "醫師(2)", r: ""},
+            {t: "三十二桌", d: "胸腔內科", n: "張明閎", p: "醫師", r: ""},
+            {t: "三十二桌", d: "心臟血管內科", n: "林哲光", p: "醫師", r: ""},
+            {t: "三十二桌", d: "放射診斷科", n: "楊傑宇", p: "醫師", r: ""},
+            {t: "三十二桌", d: "工作人員", n: "楊美珠", p: "組長", r: ""},
+            {t: "三十二桌", d: "工作人員", n: "余守純", p: "組長", r: ""},
+            {t: "三十二桌", d: "工作人員", n: "司機", p: "", r: ""},
+            {t: "三十三桌", d: "中醫部", n: "賴郁凱", p: "部長", r: ""},
+            {t: "三十三桌", d: "中醫部", n: "許益彰", p: "醫師", r: ""},
+            {t: "三十三桌", d: "中醫部", n: "沈祐任", p: "醫師", r: ""},
+            {t: "三十三桌", d: "品質管理中心", n: "謝美妃", p: "副主任", r: ""},
+            {t: "三十三桌", d: "品質管理中心", n: "張書展", p: "高專", r: ""},
+            {t: "三十三桌", d: "品質管理中心", n: "莊惠萍", p: "專員", r: ""},
+            {t: "三十三桌", d: "教學中心", n: "張宸松", p: "組長", r: ""},
+            {t: "三十三桌", d: "教學中心", n: "陳潔薇", p: "教行員", r: ""},
+            {t: "三十三桌", d: "總務室", n: "司機", p: "", r: ""},
+            {t: "三十三桌", d: "總務室", n: "司機", p: "", r: ""}
+        ];
+
+        const searchInput = document.getElementById('searchInput');
+        const resultsList = document.getElementById('resultsList');
+
+        function performSearch() {
+            const query = searchInput.value.trim().toLowerCase();
+            
+            if (query === "") {
+                resultsList.innerHTML = `
+                    <div class="text-center py-12 text-gray-400">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-16 w-16 mx-auto mb-4 opacity-20" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                        </svg>
+                        <p class="text-lg font-medium text-gray-400">搜尋座位表</p>
+                    </div>`;
+                return;
+            }
+
+            const filtered = doctorData.filter(item => 
+                item.n.toLowerCase().includes(query) || 
+                item.d.toLowerCase().includes(query)
+            );
+
+            if (filtered.length === 0) {
+                resultsList.innerHTML = `
+                    <div class="text-center py-12 text-gray-400">
+                        <p>查無資料，請更換關鍵字再試</p>
+                    </div>`;
+            } else {
+                resultsList.innerHTML = filtered.map(item => `
+                    <div class="doctor-card bg-white p-4 rounded-2xl shadow-md border border-gray-50 flex justify-between items-center">
+                        <div class="flex-1">
+                            <div class="flex items-center gap-2">
+                                <span class="text-xl font-bold text-gray-800">${item.n}</span>
+                                <span class="text-xs text-blue-700 bg-blue-50 px-2 py-0.5 rounded-lg border border-blue-100">${item.d}</span>
+                            </div>
+                            <div class="text-sm text-gray-500 mt-1.5 flex items-center">
+                                <span class="bg-gray-100 px-2 py-0.5 rounded text-xs mr-2 font-medium">${item.p}</span>
+                                ${item.r ? '<span class="text-orange-600 font-bold">✨ '+item.r+'</span>' : ''}
+                            </div>
+                        </div>
+                        <div class="table-badge text-white px-4 py-2 rounded-2xl text-center min-w-[85px] shadow-sm">
+                            <div class="text-[10px] uppercase tracking-wider opacity-80">TABLE</div>
+                            <div class="text-lg font-black">${item.t}</div>
+                        </div>
+                    </div>
+                `).join('');
+            }
+        }
+
+        searchInput.addEventListener('input', performSearch);
+    </script>
+</body>
+</html>
