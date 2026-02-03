@@ -70,7 +70,7 @@
     <div class="search-container">
         <div class="relative bg-white/95 backdrop-blur-md rounded-2xl shadow-xl border border-white/20">
             <input type="text" id="searchInput" 
-                placeholder="輸入姓名、科別或桌次..." 
+                placeholder="輸入姓名、科別..." 
                 class="w-full p-5 pl-14 text-lg bg-transparent focus:outline-none">
             <div class="absolute left-5 top-5 text-gray-400">
                 <svg xmlns="http://www.w3.org/2000/svg" class="h-7 w-7" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -82,9 +82,9 @@
 
     <!-- 結果列表 -->
     <div id="resultsList" class="space-y-4 mt-8 px-5">
-        <div class="text-center py-20 text-gray-300">
-            <svg xmlns="http://www.w3.org/2000/svg" class="h-20 w-20 mx-auto mb-4 opacity-10" fill="currentColor" viewBox="0 0 20 20">
-                <path fill-rule="evenodd" d="M8 4a4 4 0 100 8 4 4 0 000-8zM2 8a6 6 0 1110.89 3.476l4.817 4.817a1 1 0 01-1.414 1.414l-4.816-4.816A6 6 0 012 8z" clip-rule="evenodd" />
+        <div class="text-center py-20 text-gray-600">
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-12 w-12 mx-auto mb-4 opacity-70" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
             </svg>
             <p class="text-lg font-medium">請開始輸入關鍵字查詢</p>
         </div>
@@ -113,7 +113,6 @@
             return tableColors[index];
         }
 
-        // 格式化資料物件: t=桌次, d=科別, n=姓名, p=職稱
         const doctorData = [
             {t: "主桌", d: "院長室", n: "林宏榮", p: "院長(2)"},
             {t: "主桌", d: "院長室", n: "周偉倪", p: "院長"},
@@ -390,9 +389,9 @@
             
             if (query === "") {
                 resultsList.innerHTML = `
-                    <div class="text-center py-20 text-gray-300">
-                        <svg xmlns="http://www.w3.org/2000/svg" class="h-20 w-20 mx-auto mb-4 opacity-10" fill="currentColor" viewBox="0 0 20 20">
-                            <path fill-rule="evenodd" d="M8 4a4 4 0 100 8 4 4 0 000-8zM2 8a6 6 0 1110.89 3.476l4.817 4.817a1 1 0 01-1.414 1.414l-4.816-4.816A6 6 0 012 8z" clip-rule="evenodd" />
+                    <div class="text-center py-20 text-gray-600">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-12 w-12 mx-auto mb-4 opacity-70" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
                         </svg>
                         <p class="text-lg font-medium">請開始輸入關鍵字查詢</p>
                     </div>`;
